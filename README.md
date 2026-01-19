@@ -8,7 +8,7 @@
 
 RNAWorkbench-GeoRNA is a Qt6-based GUI application that streamlines the RNA-seq analysis workflow from raw data acquisition to differential expression analysis. It integrates with NCBI databases, the SRA Toolkit, Salmon, and pyDESeq2 to provide an end-to-end solution.
 
-![GeoRNA Screenshot](docs/screenshot.png)
+![GeoRNA Screenshot](docs/Screenshot%202026-01-19%20200248.png)
 
 ## ✨ Features
 
