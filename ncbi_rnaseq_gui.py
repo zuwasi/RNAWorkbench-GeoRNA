@@ -485,17 +485,21 @@ class SalmonWorker(QThread):
     
     def quantify_sample(self, sample: str, files: dict, quant_dir: str) -> bool:
         """Run Salmon quant on a single sample."""
+        if not files.get("r1"):
+            self.log.emit(f"✗ {sample}: No R1 file found, skipping")
+            return False
+        
         sample_out = os.path.join(quant_dir, sample)
         
         if self.USE_WSL and sys.platform == "win32":
             index_dir = self.win_to_wsl_path(self.index_dir)
             r1 = self.win_to_wsl_path(files["r1"])
-            r2 = self.win_to_wsl_path(files["r2"]) if files["r2"] else None
+            r2 = self.win_to_wsl_path(files["r2"]) if files.get("r2") else None
             out_dir = self.win_to_wsl_path(sample_out)
         else:
             index_dir = self.index_dir
             r1 = files["r1"]
-            r2 = files["r2"]
+            r2 = files.get("r2")
             out_dir = sample_out
         
         if r2:
@@ -1268,9 +1272,23 @@ class NCBIRNASeqGUI(QMainWindow):
                       glob.glob(os.path.join(fastq_dir, "*.fq.gz"))
         
         samples = {}
+        import re
         for f in fastq_files:
             basename = os.path.basename(f)
-            if "_1.fastq" in basename or "_1.fq" in basename or "_R1" in basename:
+            
+            match = re.match(r'^(SRR\d+)_(\d+)\.', basename)
+            if match:
+                sample_base = match.group(1)
+                read_num = match.group(2)
+                if sample_base not in samples:
+                    samples[sample_base] = {"r1": None, "r2": None, "r3": None}
+                if read_num == "1":
+                    samples[sample_base]["r1"] = f
+                elif read_num == "2":
+                    samples[sample_base]["r2"] = f
+                elif read_num == "3":
+                    samples[sample_base]["r3"] = f
+            elif "_1.fastq" in basename or "_1.fq" in basename or "_R1" in basename:
                 sample_name = basename.split("_1")[0].split("_R1")[0]
                 if sample_name not in samples:
                     samples[sample_name] = {"r1": None, "r2": None}
@@ -1285,6 +1303,12 @@ class NCBIRNASeqGUI(QMainWindow):
                 if sample_name not in samples:
                     samples[sample_name] = {"r1": None, "r2": None}
                 samples[sample_name]["r1"] = f
+        
+        for sample in samples:
+            files = samples[sample]
+            if not files.get("r1") and files.get("r2"):
+                files["r1"] = files["r2"]
+                files["r2"] = files.get("r3")
         
         self.discovered_samples = samples
         self.fastq_table.setRowCount(len(samples))
